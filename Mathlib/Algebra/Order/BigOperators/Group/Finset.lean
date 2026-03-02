@@ -222,6 +222,28 @@ theorem prod_le_pow_card [MulLeftMono N] (s : Finset ι) (f : ι → N) (n : N) 
 theorem pow_card_le_prod [MulLeftMono N] (s : Finset ι) (f : ι → N) (n : N) (h : ∀ x ∈ s, n ≤ f x) :
     n ^ #s ≤ s.prod f := Finset.prod_le_pow_card (N := Nᵒᵈ) _ _ _ h
 
+/-- If `s ⊆ t`, `f x ≤ n * g x` on `s`, and `1 ≤ g x` on `t \\ s`, then
+`∏ x in s, f x ≤ n ^ #s * ∏ x in t, g x`. -/
+@[to_additive sum_le_card_nsmul_add_sum_of_subset]
+theorem prod_le_pow_card_mul_prod_of_subset [MulLeftMono N]
+    (s t : Finset ι) (f g : ι → N) (n : N)
+    (hsubset : s ⊆ t)
+    (hpointwise : ∀ x ∈ s, f x ≤ n * g x)
+    (hone : ∀ x ∈ t, x ∉ s → 1 ≤ g x) :
+    (∏ x ∈ s, f x) ≤ n ^ #s * ∏ x ∈ t, g x := by
+  have hprod_le : ∏ x ∈ s, f x ≤ n ^ #s * ∏ x ∈ s, g x := by
+    calc
+      (∏ x ∈ s, f x) ≤ ∏ x ∈ s, n * g x := Finset.prod_le_prod' hpointwise
+      _ = (∏ x ∈ s, n) * ∏ x ∈ s, g x := by rw [Finset.prod_mul_distrib]
+      _ = n ^ #s * ∏ x ∈ s, g x := by simp
+  have hmono_g : (∏ x ∈ s, g x) ≤ ∏ x ∈ t, g x :=
+    Finset.prod_le_prod_of_subset_of_one_le' hsubset hone
+  have hmul : n ^ #s * ∏ x ∈ s, g x ≤ n ^ #s * ∏ x ∈ t, g x :=
+    mul_le_mul_right hmono_g (n ^ #s)
+  calc
+    (∏ x ∈ s, f x) ≤ n ^ #s * ∏ x ∈ s, g x := hprod_le
+    _ ≤ n ^ #s * ∏ x ∈ t, g x := hmul
+
 theorem card_biUnion_le_card_mul [DecidableEq β] (s : Finset ι) (f : ι → Finset β) (n : ℕ)
     (h : ∀ a ∈ s, #(f a) ≤ n) : #(s.biUnion f) ≤ #s * n :=
   card_biUnion_le.trans <| sum_le_card_nsmul _ _ _ h
