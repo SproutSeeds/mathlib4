@@ -41,6 +41,28 @@ public register_option linter.docPrime : Bool := {
 
 namespace DocPrime
 
+/-- Best-effort location of the Mathlib package root. -/
+def getMathlibDir? : IO (Option System.FilePath) := do
+  let sp ← Lean.getSrcSearchPath
+  sp.findM? fun p =>
+    (p / "Mathlib").isDir <||> ((p / "Mathlib").withExtension "lean").pathExists
+
+/--
+Best-effort location of `nolints_prime_decls.txt`.
+
+We first look relative to the current working directory (mathlib-in-tree builds), then
+relative to the Mathlib package root (downstream builds).
+-/
+def nolintsPrimeDeclsPath? : IO (Option System.FilePath) := do
+  let localPath : System.FilePath := "scripts/nolints_prime_decls.txt"
+  if ← localPath.pathExists then
+    return some localPath
+  if let some mathlibDir ← getMathlibDir? then
+    let packagePath := mathlibDir / "scripts" / "nolints_prime_decls.txt"
+    if ← packagePath.pathExists then
+      return some packagePath
+  return none
+
 @[inherit_doc Mathlib.Linter.linter.docPrime]
 def docPrimeLinter : Linter where run := withSetOptionIn fun stx ↦ do
   unless getLinterValue linter.docPrime (← getLinterOptions) do
@@ -71,13 +93,12 @@ def docPrimeLinter : Linter where run := withSetOptionIn fun stx ↦ do
       relative to the unprimed version, or an explanation as to why no better naming scheme \
       is possible."
   if docstring[0][1].getAtomVal.isEmpty && declName.toString.back == '\'' then
-    if ← System.FilePath.pathExists "scripts/nolints_prime_decls.txt" then
-      if (← IO.FS.lines "scripts/nolints_prime_decls.txt").contains declName.toString then
+    if let some nolintsPath ← nolintsPrimeDeclsPath? then
+      if (← IO.FS.lines nolintsPath).contains declName.toString then
         return
-      else
-        Linter.logLint linter.docPrime declId msg
     else
-      Linter.logLint linter.docPrime declId msg
+      return
+    Linter.logLint linter.docPrime declId msg
 
 initialize addLinter docPrimeLinter
 
