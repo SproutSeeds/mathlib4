@@ -131,7 +131,12 @@ variable (ignoreTacticKinds : NameHashSet) (isTacKind : SyntaxNodeKind → Bool)
 /-- Accumulates the set of tactic syntaxes that should be evaluated at least once. -/
 @[specialize] partial def getTactics (stx : Syntax) : M Unit := do
   if let .node _ k args := stx then
-    if !isIgnoreTacticKind ignoreTacticKinds k then
+    if k == ``Parser.Term.typeAscription then
+      if let #[_, val, _, _, _] := args then
+        getTactics val
+      else
+        args.forM getTactics
+    else if !isIgnoreTacticKind ignoreTacticKinds k then
       args.forM getTactics
     if isTacKind k then
       if let some r := stx.getRange? true then

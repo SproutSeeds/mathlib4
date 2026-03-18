@@ -72,4 +72,9 @@ example : True := by
   constructor
   done
 
+#guard_msgs in
+example : True := by
+  let _ := (by trivial : ((by exact True) : Prop))
+  trivial
+
 end allowing_more_unused_tactics
